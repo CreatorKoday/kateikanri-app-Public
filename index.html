@@ -349,6 +349,16 @@
   .check-btn:hover { transform: translateY(-1px) scale(1.04); }
   .check-btn .lucide { width: 17px; height: 17px; }
 
+  .unit-chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .unit-chip {
+    height: auto; padding: 5px 12px;
+    background: var(--accent-tint); color: var(--primary);
+    border: 1px solid transparent; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .unit-chip:hover { border-color: var(--primary); }
+  .unit-chip.selected { background: var(--primary); color: #fff; }
+
   .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
 
   /* --- 自作カレンダー(日付選択) --- */
@@ -468,6 +478,7 @@
           <div>
             <label for="item-unit">単位</label>
             <input type="text" id="item-unit" placeholder="個・本など" value="個">
+            <div id="item-unit-suggestions" class="unit-chip-row"></div>
           </div>
         </div>
 
@@ -734,6 +745,7 @@
         const name = data.product.product_name_ja || data.product.product_name || "";
         if (name) {
           document.getElementById("item-name").value = name;
+          updateUnitSuggestions();
           showMessage(addMessageBox, "商品名を自動入力しました。内容を確認して登録してください。", false);
           return;
         }
@@ -778,6 +790,76 @@
   });
   document.getElementById("filter-category").addEventListener("change", loadItems);
   document.getElementById("filter-tag").addEventListener("change", loadItems);
+
+  // ---------- 商品名から単位を自動判定 ----------
+
+  const UNIT_RULES = [
+    { keywords: ["卵", "たまご"], units: ["パック", "個"] },
+    { keywords: ["牛乳", "豆乳"], units: ["本", "ml"] },
+    { keywords: ["ヨーグルト", "チーズ", "納豆", "豆腐"], units: ["個", "パック"] },
+    { keywords: ["米", "お米"], units: ["kg", "袋"] },
+    { keywords: ["パン", "食パン"], units: ["斤", "袋"] },
+    { keywords: ["肉", "鶏", "豚", "牛肉", "ひき肉", "ベーコン"], units: ["パック", "g"] },
+    { keywords: ["魚", "鮭", "サーモン", "マグロ", "刺身"], units: ["パック", "切れ"] },
+    { keywords: ["キャベツ", "レタス", "白菜"], units: ["個", "玉"] },
+    { keywords: ["トマト", "きゅうり", "なす", "ピーマン", "にんじん", "人参", "じゃがいも", "玉ねぎ", "たまねぎ"], units: ["個"] },
+    { keywords: ["水", "ミネラルウォーター"], units: ["本", "L"] },
+    { keywords: ["ジュース", "お茶", "紅茶", "コーヒー", "炭酸", "ビール", "酒"], units: ["本"] },
+    { keywords: ["醤油", "しょうゆ", "みりん", "油", "ソース", "ケチャップ", "マヨネーズ", "だし"], units: ["本"] },
+    { keywords: ["味噌", "みそ"], units: ["個"] },
+    { keywords: ["塩", "砂糖"], units: ["袋"] },
+    { keywords: ["ティッシュ"], units: ["箱"] },
+    { keywords: ["トイレットペーパー"], units: ["ロール", "パック"] },
+    { keywords: ["洗剤", "柔軟剤", "漂白剤"], units: ["本"] },
+    { keywords: ["歯ブラシ"], units: ["本"] },
+    { keywords: ["マスク"], units: ["箱", "枚"] }
+  ];
+
+  // 商品名から単位の候補を返す(1件なら確実、複数なら選ばせる)
+  function guessUnitOptions(name) {
+    const target = name || "";
+    for (const rule of UNIT_RULES) {
+      if (rule.keywords.some(k => target.includes(k))) return rule.units;
+    }
+    return ["個"];
+  }
+
+  function updateUnitSuggestions() {
+    const name = document.getElementById("item-name").value.trim();
+    const unitInput = document.getElementById("item-unit");
+    const suggestBox = document.getElementById("item-unit-suggestions");
+
+    if (!name) {
+      suggestBox.innerHTML = "";
+      return;
+    }
+
+    const options = guessUnitOptions(name);
+
+    if (options.length === 1) {
+      // 単位が確実な場合: 自動入力するが、そのまま手入力でも変更できる
+      unitInput.value = options[0];
+      suggestBox.innerHTML = "";
+    } else {
+      // 複数の可能性がある場合: 候補だけをボタンで表示して選ばせる
+      if (!options.includes(unitInput.value)) {
+        unitInput.value = options[0];
+      }
+      suggestBox.innerHTML = options.map(u =>
+        `<button type="button" class="unit-chip ${u === unitInput.value ? "selected" : ""}" data-unit="${escapeHtml(u)}">${escapeHtml(u)}</button>`
+      ).join("");
+      suggestBox.querySelectorAll(".unit-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          unitInput.value = chip.dataset.unit;
+          suggestBox.querySelectorAll(".unit-chip").forEach(c => c.classList.remove("selected"));
+          chip.classList.add("selected");
+        });
+      });
+    }
+  }
+
+  document.getElementById("item-name").addEventListener("input", updateUnitSuggestions);
+  document.getElementById("item-name").addEventListener("blur", updateUnitSuggestions);
 
   async function upsertItemByName({ name, category, unit, quantity, expiry_date, low_stock_threshold, barcode }) {
     const cleanName = (name || "").trim();
@@ -1139,6 +1221,8 @@
 
     showMessage(addMessageBox, "登録しました(同じ名前の商品があれば数量をまとめました)", false);
     document.getElementById("item-name").value = "";
+    document.getElementById("item-unit").value = "個";
+    document.getElementById("item-unit-suggestions").innerHTML = "";
     document.getElementById("item-quantity").value = "1";
     document.getElementById("item-expiry").value = "";
     currentBarcodeValue = null;
