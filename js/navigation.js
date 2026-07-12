@@ -1,5 +1,5 @@
 // ==========================================================
-// 画面切り替え(ホーム / 買い物リスト / 在庫確認 / 手動消費登録)
+// 画面切り替え(ホーム / 買い物リスト / 在庫確認)
 // ==========================================================
 
 import { loadShoppingList } from "./shopping.js";
@@ -22,5 +22,4 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
 });
 
-// 「手動で登録」はホーム画面内のアコーディオンに統合されたため、ここでの遷移は不要になった
-document.getElementById("goto-manual-consume-btn").addEventListener("click", () => switchView("manual-consume"));
+// 「手動で登録」「手動で消費」はホーム画面内のタブに統合されたため、ここでの遷移は不要になった

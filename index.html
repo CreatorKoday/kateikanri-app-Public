@@ -76,6 +76,8 @@
 
       <!-- 今後、賞味期限が近い食材・期限切れ・おすすめレシピ・在庫サマリーなどをここに追加予定 -->
 
+      <div id="add-message" style="margin:10px 0;"></div>
+
       <!-- 「食材を登録」パネル(モーダル・画面遷移なし。タブでバーコード/AI/手動を切り替え) -->
       <div id="register-accordion-section" class="card hidden" style="margin-top:16px;">
         <div class="accordion-panel-header">
@@ -153,80 +155,65 @@
           <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
           <div id="manual-add-message"></div>
         </div>
-
-        <div id="add-message" style="margin-top:12px;"></div>
       </div>
 
-      <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
-
-      <div id="consume-scanner-wrap" class="hidden">
-        <div id="consume-reader"></div>
-        <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-        <button class="btn-secondary" id="close-consume-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
-      </div>
-
-      <div id="consume-review-section" class="card hidden" style="margin-top:14px;">
-        <span class="review-badge" style="background:#FEE2E2; color:#B91C1C;">消費登録</span>
-        <h2 style="margin-top:0;">在庫から消費する商品</h2>
-        <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
-        <div id="consume-review-list"></div>
-        <button class="btn-primary" id="confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
-        <button class="btn-secondary" id="cancel-consume-btn"><i data-lucide="x"></i> キャンセル</button>
-        <div id="consume-message"></div>
-      </div>
-    </div>
-
-    <!-- 「食材を消費」モーダル -->
-    <div id="consume-modal-overlay" class="modal-overlay hidden">
-      <div class="modal-sheet">
-        <div class="modal-header">
-          <h2>食材を消費</h2>
-          <button class="modal-close-btn" id="close-consume-modal-btn"><i data-lucide="x"></i></button>
+      <!-- 「食材を消費」パネル(登録と同じ構成。モーダル・画面遷移なし) -->
+      <div id="consume-accordion-section" class="card hidden" style="margin-top:16px;">
+        <div class="accordion-panel-header">
+          <h2 style="margin:0;">食材を消費</h2>
+          <button class="modal-close-btn" id="close-consume-accordion-btn"><i data-lucide="x"></i></button>
         </div>
-        <div class="modal-options">
-          <button class="modal-option" id="consume-scan-btn">
-            <span class="modal-option-icon consume"><i data-lucide="scan-line"></i></span>
-            <span class="modal-option-text">
-              <span class="modal-option-title">バーコードで消費</span>
-              <span class="modal-option-desc">在庫から該当商品を検索</span>
-            </span>
-            <i data-lucide="chevron-right" class="modal-option-arrow"></i>
+
+        <div class="segmented-tabs">
+          <button class="segmented-tab" data-tab-target="consume-barcode">
+            <i data-lucide="scan-line"></i><span>バーコード</span>
           </button>
-          <button class="modal-option" id="consume-photo-btn">
-            <span class="modal-option-icon consume"><i data-lucide="camera"></i></span>
-            <span class="modal-option-text">
-              <span class="modal-option-title">AIで消費</span>
-              <span class="modal-option-desc">写真から在庫を検索</span>
-            </span>
-            <i data-lucide="chevron-right" class="modal-option-arrow"></i>
+          <button class="segmented-tab" data-tab-target="consume-ai">
+            <i data-lucide="camera"></i><span>AI</span>
           </button>
-          <button class="modal-option" id="goto-manual-consume-btn">
-            <span class="modal-option-icon consume"><i data-lucide="edit-3"></i></span>
-            <span class="modal-option-text">
-              <span class="modal-option-title">手動で消費</span>
-              <span class="modal-option-desc">商品名を検索して選ぶ</span>
-            </span>
-            <i data-lucide="chevron-right" class="modal-option-arrow"></i>
+          <button class="segmented-tab" data-tab-target="consume-manual">
+            <i data-lucide="edit-3"></i><span>手動</span>
           </button>
         </div>
-      </div>
-    </div>
 
-    <!-- ========== 手動消費登録ページ ========== -->
-    <div id="view-manual-consume" class="view hidden">
-      <button class="btn-secondary" onclick="switchView('home')"><i data-lucide="arrow-left"></i> ホームに戻る</button>
-      <div class="card" style="margin-top:14px;">
-        <h2 style="margin-top:0;">手動で消費登録</h2>
-        <label for="consume-search">商品を検索</label>
-        <input type="text" id="consume-search" placeholder="商品名で検索(例: 牛乳)">
-        <div id="consume-search-results"></div>
-      </div>
+        <div class="tab-panel" id="tab-panel-consume-barcode">
+          <div id="consume-scanner-wrap" class="hidden">
+            <div id="consume-reader"></div>
+            <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+            <button class="btn-secondary" id="close-consume-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
+          </div>
+          <button class="btn-primary" id="consume-scan-btn"><i data-lucide="scan-line"></i> スキャンを開始する</button>
+        </div>
 
-      <div id="manual-consume-review-section" class="card hidden" style="margin-top:14px;">
-        <h2 style="margin-top:0;">消費する商品</h2>
-        <div id="manual-consume-review-list"></div>
-        <button class="btn-primary" id="manual-confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
-        <div id="manual-consume-message"></div>
+        <div class="tab-panel" id="tab-panel-consume-ai">
+          <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
+          <button class="btn-primary" id="consume-photo-btn"><i data-lucide="camera"></i> 写真を撮影する</button>
+        </div>
+
+        <div class="tab-panel" id="tab-panel-consume-manual">
+          <label for="consume-search">商品を検索</label>
+          <input type="text" id="consume-search" placeholder="商品名で検索(例: 牛乳)">
+          <div id="consume-search-results"></div>
+
+          <div id="manual-consume-review-section" class="hidden" style="margin-top:16px;">
+            <h2 style="margin-top:0;">消費する商品</h2>
+            <div id="manual-consume-review-list"></div>
+            <button class="btn-primary" id="manual-confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
+            <div id="manual-consume-message"></div>
+          </div>
+        </div>
+
+        <!-- バーコード/AIどちらの消費結果もここに共通表示 -->
+        <div id="consume-review-section" class="hidden" style="margin-top:16px;">
+          <span class="review-badge" style="background:#FEE2E2; color:#B91C1C;">消費登録</span>
+          <h2 style="margin-top:0;">在庫から消費する商品</h2>
+          <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
+          <div id="consume-review-list"></div>
+          <button class="btn-primary" id="confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
+          <button class="btn-secondary" id="cancel-consume-btn"><i data-lucide="x"></i> キャンセル</button>
+        </div>
+
+        <div id="consume-message" style="margin-top:12px;"></div>
       </div>
     </div>
 
