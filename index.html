@@ -173,6 +173,39 @@
   }
 
   .filter-row { display: flex; gap: 8px; margin-bottom: 6px; }
+
+  /* --- 自作カレンダー(日付選択) --- */
+  .date-display { cursor: pointer; background: #fff; }
+  #calendar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  #calendar-overlay.hidden { display: none; }
+  #calendar-modal {
+    background: #fff; border-radius: 14px; padding: 18px;
+    width: 100%; max-width: 340px;
+  }
+  .calendar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .calendar-header button {
+    background: #eef1ee; color: #2f8f5b; width: 34px; height: 34px;
+    border-radius: 8px; font-size: 18px; padding: 0; margin-top: 0;
+  }
+  #cal-month-label { font-weight: 600; font-size: 15px; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .calendar-grid .cal-dow { text-align: center; font-size: 11px; color: #999; padding: 4px 0; }
+  .calendar-grid .cal-day {
+    text-align: center; padding: 8px 0; border-radius: 8px; font-size: 14px;
+    cursor: pointer; background: #f5f6f8;
+  }
+  .calendar-grid .cal-day.empty { background: none; cursor: default; }
+  .calendar-grid .cal-day.selected { background: #2f8f5b; color: #fff; font-weight: 600; }
+  .calendar-grid .cal-day.today { border: 1px solid #2f8f5b; }
+  .calendar-footer { display: flex; gap: 8px; margin-top: 12px; }
+  .calendar-footer button { margin-top: 0; flex: 1; }
 </style>
 </head>
 <body>
@@ -242,13 +275,9 @@
           </div>
           <div>
             <label for="item-expiry">消費・賞味期限(任意)</label>
-            <input type="date" id="item-expiry">
+            <input type="text" id="item-expiry" class="date-display" placeholder="タップして選択" readonly>
           </div>
         </div>
-
-        <label for="item-threshold">最低数量</label>
-        <input type="number" id="item-threshold" value="1" min="0" step="1" inputmode="numeric" pattern="[0-9]*">
-        <p class="scan-hint" style="text-align:left;">最低数量以下になると自動で買い物リストに追加されます</p>
 
         <button class="btn-primary" id="add-item-btn">＋ 登録する</button>
         <div id="add-message"></div>
@@ -298,6 +327,22 @@
       <div id="item-list"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- 日付選択用の自作カレンダー -->
+<div id="calendar-overlay" class="hidden">
+  <div id="calendar-modal">
+    <div class="calendar-header">
+      <button type="button" id="cal-prev">‹</button>
+      <span id="cal-month-label"></span>
+      <button type="button" id="cal-next">›</button>
+    </div>
+    <div id="calendar-grid" class="calendar-grid"></div>
+    <div class="calendar-footer">
+      <button type="button" class="btn-secondary" id="cal-clear">未設定にする</button>
+      <button type="button" class="btn-secondary" id="cal-close">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -674,12 +719,9 @@
           </div>
           <div>
             <label>消費・賞味期限(任意)</label>
-            <input type="date" class="review-expiry">
+            <input type="text" class="review-expiry date-display" placeholder="タップして選択" readonly>
           </div>
         </div>
-
-        <label>最低数量</label>
-        <input type="number" class="review-threshold" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="1">
       </div>
     `).join("");
 
@@ -712,8 +754,7 @@
         category: card.querySelector(".review-category").value,
         unit: card.querySelector(".review-unit").value.trim() || "個",
         quantity: parseFloat(card.querySelector(".review-quantity").value) || 0,
-        expiry_date: card.querySelector(".review-expiry").value || null,
-        low_stock_threshold: parseFloat(card.querySelector(".review-threshold").value) || 1
+        expiry_date: card.querySelector(".review-expiry").value || null
       });
       count++;
     }
@@ -831,7 +872,6 @@
     const unit = document.getElementById("item-unit").value.trim() || "個";
     const quantity = parseFloat(document.getElementById("item-quantity").value) || 0;
     const expiry = document.getElementById("item-expiry").value || null;
-    const threshold = parseFloat(document.getElementById("item-threshold").value) || 1;
 
     if (!name) {
       showMessage(addMessageBox, "商品名を入力してください", true);
@@ -840,7 +880,7 @@
 
     const id = await upsertItemByName({
       name, category, unit, quantity, expiry_date: expiry,
-      low_stock_threshold: threshold, barcode: currentBarcodeValue
+      barcode: currentBarcodeValue
     });
 
     if (!id) {
@@ -852,7 +892,6 @@
     document.getElementById("item-name").value = "";
     document.getElementById("item-quantity").value = "1";
     document.getElementById("item-expiry").value = "";
-    document.getElementById("item-threshold").value = "1";
     currentBarcodeValue = null;
   });
 
@@ -1012,6 +1051,89 @@
     const { error } = await supabaseClient.from("shopping_list").delete().eq("id", id);
     if (!error) loadShoppingList();
   };
+
+  // ---------- 自作カレンダー(日付選択) ----------
+
+  let calendarTargetInput = null;
+  let calendarViewDate = new Date();
+
+  function formatDateYMD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function openCalendar(targetInput) {
+    calendarTargetInput = targetInput;
+    const existing = targetInput.value;
+    calendarViewDate = existing ? new Date(existing + "T00:00:00") : new Date();
+    renderCalendar();
+    document.getElementById("calendar-overlay").classList.remove("hidden");
+  }
+
+  function closeCalendar() {
+    document.getElementById("calendar-overlay").classList.add("hidden");
+    calendarTargetInput = null;
+  }
+
+  function renderCalendar() {
+    const year = calendarViewDate.getFullYear();
+    const month = calendarViewDate.getMonth();
+    document.getElementById("cal-month-label").textContent = year + "年" + (month + 1) + "月";
+
+    const firstDay = new Date(year, month, 1);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const selectedValue = calendarTargetInput ? calendarTargetInput.value : "";
+    const todayStr = formatDateYMD(new Date());
+
+    const dows = ["日", "月", "火", "水", "木", "金", "土"];
+    let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join("");
+
+    for (let i = 0; i < startWeekday; i++) html += `<div class="cal-day empty"></div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = formatDateYMD(new Date(year, month, d));
+      let cls = "cal-day";
+      if (dateStr === selectedValue) cls += " selected";
+      if (dateStr === todayStr) cls += " today";
+      html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
+    }
+
+    document.getElementById("calendar-grid").innerHTML = html;
+
+    document.querySelectorAll("#calendar-grid .cal-day:not(.empty)").forEach(el => {
+      el.addEventListener("click", () => {
+        if (calendarTargetInput) calendarTargetInput.value = el.dataset.date;
+        closeCalendar();
+      });
+    });
+  }
+
+  document.getElementById("cal-prev").addEventListener("click", () => {
+    calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", () => {
+    calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    renderCalendar();
+  });
+  document.getElementById("cal-clear").addEventListener("click", () => {
+    if (calendarTargetInput) calendarTargetInput.value = "";
+    closeCalendar();
+  });
+  document.getElementById("cal-close").addEventListener("click", closeCalendar);
+  document.getElementById("calendar-overlay").addEventListener("click", (e) => {
+    if (e.target.id === "calendar-overlay") closeCalendar();
+  });
+
+  // 写真AI判定で動的に増える日付欄にも対応できるよう、クリックはイベント委譲で拾う
+  document.addEventListener("click", (e) => {
+    if (e.target.classList && e.target.classList.contains("date-display")) {
+      openCalendar(e.target);
+    }
+  });
 </script>
 
 </body>
