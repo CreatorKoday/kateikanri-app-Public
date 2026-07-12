@@ -1,11 +1,9 @@
 // ==========================================================
-// ホーム画面のダッシュボード化
+// ホーム画面: アクションメニュー(6カード)から1タップで各機能を開く
 //
-// 「食材を登録」「食材を消費」は1つのパネルにまとまっており、
-// パネル上部の「登録 / 消費」ボタンで、パネルを閉じずにその場で
-// モードを切り替えられる。各モードの中はさらにセグメントタブ
-// (バーコード/AI/手動)で切り替える。
-// パネルを開くとダッシュボードの2つのボタンは隠れ、閉じると再表示される。
+// 「登録」「消費」の大きなボタン→方法選択、という2段階の導線を廃止し、
+// バーコード登録/AI登録/手動登録/バーコード削除/AI削除/手動削除の
+// 6つを常時ホーム画面に表示し、タップすると該当機能だけが直接開く。
 //
 // 【重要】このファイルは見た目・表示切り替えの制御のみを行う。
 // scan-btn / photo-btn / add-item-btn / consume-scan-btn / consume-photo-btn /
@@ -17,57 +15,41 @@
 function show(id) { document.getElementById(id).classList.remove("hidden"); }
 function hide(id) { document.getElementById(id).classList.add("hidden"); }
 
-const dashboardGrid = document.querySelector(".dashboard-grid");
+const actionMenu = document.querySelector(".action-menu-grid");
 const actionPanel = document.getElementById("action-panel-section");
 const actionPanelTitle = document.getElementById("action-panel-title");
 
-const MODE_TITLES = { register: "食材を登録", consume: "食材を消費" };
-const MODE_DEFAULT_TAB = { register: "barcode", consume: "consume-barcode" };
+const PANEL_TITLES = {
+  "barcode": "バーコードで登録",
+  "ai": "AIで登録",
+  "manual": "手動で登録",
+  "consume-barcode": "バーコードで削除",
+  "consume-ai": "AIで削除",
+  "consume-manual": "手動で削除"
+};
 
-function selectTab(target) {
-  document.querySelectorAll(".segmented-tab").forEach(tab => {
-    tab.classList.toggle("active", tab.dataset.tabTarget === target);
-  });
+function selectPanel(target) {
   document.querySelectorAll(".tab-panel").forEach(panel => {
     panel.classList.toggle("active", panel.id === "tab-panel-" + target);
   });
+  actionPanelTitle.textContent = PANEL_TITLES[target] || "";
 }
 
-function selectMode(mode) {
-  document.querySelectorAll(".mode-switch-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.modeTarget === mode);
-  });
-  document.querySelectorAll(".mode-panel").forEach(panel => {
-    panel.classList.toggle("active", panel.id === "mode-panel-" + mode);
-  });
-  actionPanelTitle.textContent = MODE_TITLES[mode];
-  selectTab(MODE_DEFAULT_TAB[mode]);
-}
-
-document.querySelectorAll(".mode-switch-btn").forEach(btn => {
-  btn.addEventListener("click", () => selectMode(btn.dataset.modeTarget));
-});
-document.querySelectorAll(".segmented-tab").forEach(tab => {
-  tab.addEventListener("click", () => selectTab(tab.dataset.tabTarget));
-});
-
-// ---------- パネルの開閉 ----------
-
-function openActionPanel(mode) {
-  dashboardGrid.classList.add("hidden");
+function openActionPanel(target) {
+  actionMenu.classList.add("hidden");
   show("action-panel-section");
-  selectMode(mode);
+  selectPanel(target);
   actionPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function closeActionPanel() {
   hide("action-panel-section");
-  dashboardGrid.classList.remove("hidden");
-  selectMode("register");
+  actionMenu.classList.remove("hidden");
 }
 
-document.getElementById("open-register-modal-btn").addEventListener("click", () => openActionPanel("register"));
-document.getElementById("open-consume-modal-btn").addEventListener("click", () => openActionPanel("consume"));
+document.querySelectorAll(".action-menu-card").forEach(card => {
+  card.addEventListener("click", () => openActionPanel(card.dataset.target));
+});
 document.getElementById("close-action-panel-btn").addEventListener("click", closeActionPanel);
 
 // ---------- 完了したら自動でパネルを閉じる ----------
@@ -81,12 +63,9 @@ function watchSuccessMessage(elId, onSuccess) {
   }).observe(el, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 }
 
-// 手動登録が成功したら閉じる
-watchSuccessMessage("manual-add-message", closeActionPanel);
-// 手動消費が成功したら閉じる
-watchSuccessMessage("manual-consume-message", closeActionPanel);
-// バーコード/AI経由の消費が確定されたら閉じる
-watchSuccessMessage("consume-message", closeActionPanel);
+watchSuccessMessage("manual-add-message", closeActionPanel);     // 手動登録の成功
+watchSuccessMessage("manual-consume-message", closeActionPanel); // 手動削除の成功
+watchSuccessMessage("consume-message", closeActionPanel);        // バーコード/AI削除の確定
 
 // AIでの一括登録が完了(またはキャンセル)されたら閉じる
 const reviewSectionEl = document.getElementById("review-section");
