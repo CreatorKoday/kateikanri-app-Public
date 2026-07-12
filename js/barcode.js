@@ -88,7 +88,7 @@ async function lookupBarcode(barcode) {
       if (name) {
         document.getElementById("item-name").value = name;
         updateUnitSuggestions();
-        showMessage(addMessageBox, "商品名を自動入力しました。「手動で登録」ページを開いて内容を確認してください。", false);
+        showMessage(addMessageBox, "商品名を自動入力しました。「手動で登録」を開いて内容を確認してください。", false);
         return;
       }
     }
