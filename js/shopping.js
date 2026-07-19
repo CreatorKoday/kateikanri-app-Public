@@ -3,12 +3,12 @@
 // ==========================================================
 
 import { supabaseClient } from "./config.js";
-import { shoppingListEl, shoppingMessageBox } from "./elements.js";
-import { showMessage, escapeHtml, fillQuantitySelect } from "./utils.js";
+import { shoppingListEl } from "./elements.js";
+import { escapeHtml } from "./utils.js";
 
-fillQuantitySelect(document.getElementById("shopping-quantity"), 1, 30, 1);
-
-// 在庫ロットの合計数量としきい値を見て、買い物リストへの追加/削除を自動で行う
+// 在庫ロットの合計数量としきい値を見て、買い物リストへの追加/削除を自動で行う。
+// low_stock_threshold が 0 の商品は、在庫が0でも自動追加の対象にしない
+// (最低数量を「管理しない」という意思表示として扱う)
 export async function syncShoppingListForItem(itemId) {
   const { data: item, error: itemError } = await supabaseClient
     .from("items")
@@ -43,7 +43,8 @@ export async function syncShoppingListForItem(itemId) {
   }
   const existing = existingList && existingList.length > 0 ? existingList[0] : null;
 
-  const isLow = totalQuantity <= Number(item.low_stock_threshold);
+  const threshold = Number(item.low_stock_threshold);
+  const isLow = threshold > 0 && totalQuantity < threshold;
 
   if (isLow && !existing) {
     const { error: insertError } = await supabaseClient.from("shopping_list").insert({
@@ -56,6 +57,42 @@ export async function syncShoppingListForItem(itemId) {
     const { error: deleteError } = await supabaseClient.from("shopping_list").delete().eq("id", existing.id);
     if (deleteError) console.error("買い物リストからの削除に失敗:", deleteError);
   }
+}
+
+// 前後の空白を除去し、全角/半角スペースの違いを吸収する(重複判定・保存の両方で使う)
+function normalizeShoppingName(name) {
+  return (name || "").replace(/[　\s]+/g, " ").trim();
+}
+
+// ホーム画面(手動登録・AI写真判定)から、在庫(item_id)とは紐付けずに買い物リストへ追加する。
+// 在庫と紐付けないため、在庫の増減で誤って削除されることがない。
+// 同じ商品名(空白の違いを除く)の未完了項目がすでにあれば、重複追加しない。
+export async function addToShoppingList(rawName) {
+  const name = normalizeShoppingName(rawName);
+  if (!name) return { ok: false, reason: "empty" };
+
+  const { data: dup, error: dupError } = await supabaseClient
+    .from("shopping_list")
+    .select("id")
+    .eq("is_purchased", false)
+    .eq("name", name)
+    .limit(1);
+  if (dupError) {
+    console.error("買い物リストの重複確認に失敗:", dupError);
+    return { ok: false, reason: "error" };
+  }
+  if (dup && dup.length > 0) return { ok: true, duplicate: true };
+
+  const { error: insertError } = await supabaseClient.from("shopping_list").insert({
+    item_id: null,
+    name,
+    quantity_needed: 1
+  });
+  if (insertError) {
+    console.error("買い物リストへの追加に失敗:", insertError);
+    return { ok: false, reason: "error" };
+  }
+  return { ok: true, duplicate: false };
 }
 
 export async function loadShoppingList() {
@@ -83,87 +120,18 @@ function renderShoppingList(rows) {
       <button class="check-btn" data-action="mark-purchased" data-id="${row.id}" data-item-id="${row.item_id || ""}" data-quantity="${row.quantity_needed}" data-name="${escapeHtml(row.name)}"><span class="material-symbols-rounded">check</span></button>
       <div class="shopping-info">
         <div class="shopping-name">${escapeHtml(row.name)}</div>
-        <div class="shopping-meta">数量 ${row.quantity_needed} ・ ${row.item_id ? "在庫連動" : "自由入力"}</div>
+        <div class="shopping-meta">数量 ${row.quantity_needed}${row.item_id ? " ・ 在庫連動" : ""}</div>
       </div>
-      <button type="button" class="shopping-edit-btn" data-action="edit-shopping-item"
-        data-id="${row.id}" data-name="${escapeHtml(row.name)}" data-quantity="${row.quantity_needed}" aria-label="編集">
-        <span class="material-symbols-rounded">edit</span>
-      </button>
       <button class="del-btn" data-action="remove-shopping-item" data-id="${row.id}"><span class="material-symbols-rounded">delete</span></button>
     </div>
   `).join("");
 
 }
 
-// 編集中の買い物リストID(nullなら新規追加モード)。上部フォームを編集にも使い回す。
-let editingShoppingId = null;
-
-function resetShoppingForm() {
-  editingShoppingId = null;
-  document.getElementById("shopping-name").value = "";
-  document.getElementById("shopping-quantity").value = "1";
-  document.getElementById("add-shopping-btn").innerHTML = '<span class="material-symbols-rounded">add</span> 追加';
-  document.getElementById("cancel-edit-shopping-btn").classList.add("hidden");
-}
-
-function startEditShoppingItem(id, name, quantity) {
-  editingShoppingId = id;
-  document.getElementById("shopping-name").value = name;
-  document.getElementById("shopping-quantity").value = String(Math.min(30, Math.max(1, Math.round(quantity) || 1)));
-  document.getElementById("add-shopping-btn").innerHTML = '<span class="material-symbols-rounded">check</span> 更新する';
-  document.getElementById("cancel-edit-shopping-btn").classList.remove("hidden");
-  document.getElementById("shopping-name").scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-document.getElementById("cancel-edit-shopping-btn").addEventListener("click", resetShoppingForm);
-
-document.getElementById("add-shopping-btn").addEventListener("click", async () => {
-  const name = document.getElementById("shopping-name").value.trim();
-  const quantity = parseFloat(document.getElementById("shopping-quantity").value) || 1;
-
-  if (!name) {
-    showMessage(shoppingMessageBox, "商品名を入力してください", true);
-    return;
-  }
-
-  if (editingShoppingId) {
-    const { error } = await supabaseClient
-      .from("shopping_list")
-      .update({ name, quantity_needed: quantity })
-      .eq("id", editingShoppingId);
-
-    if (error) {
-      showMessage(shoppingMessageBox, "更新エラー: " + error.message, true);
-      return;
-    }
-
-    showMessage(shoppingMessageBox, "更新しました", false);
-    resetShoppingForm();
-    loadShoppingList();
-    return;
-  }
-
-  const { error } = await supabaseClient.from("shopping_list").insert({
-    name, quantity_needed: quantity, item_id: null
-  });
-
-  if (error) {
-    showMessage(shoppingMessageBox, "追加エラー: " + error.message, true);
-    return;
-  }
-
-  showMessage(shoppingMessageBox, "追加しました", false);
-  resetShoppingForm();
-  loadShoppingList();
-});
-
 async function removeShoppingItem(id) {
   if (!confirm("このリストの項目を削除しますか?")) return;
   const { error } = await supabaseClient.from("shopping_list").delete().eq("id", id);
-  if (!error) {
-    if (editingShoppingId === id) resetShoppingForm();
-    loadShoppingList();
-  }
+  if (!error) loadShoppingList();
 }
 
 // 「購入済み」(mark-purchased)は js/shoppingPurchase.js が独自に監視し、
@@ -172,7 +140,5 @@ async function removeShoppingItem(id) {
 // カード内のボタンはloadShoppingList()のたびに再生成されるため、shoppingListElへの委譲で拾う
 shoppingListEl.addEventListener("click", (e) => {
   const removeBtn = e.target.closest('[data-action="remove-shopping-item"]');
-  if (removeBtn) { removeShoppingItem(removeBtn.dataset.id); return; }
-  const editBtn = e.target.closest('[data-action="edit-shopping-item"]');
-  if (editBtn) startEditShoppingItem(editBtn.dataset.id, editBtn.dataset.name, Number(editBtn.dataset.quantity));
+  if (removeBtn) removeShoppingItem(removeBtn.dataset.id);
 });

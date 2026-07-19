@@ -72,8 +72,6 @@ h4.group-subheading {
 
 .lot-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
-.lot-quantity { font-size: 14px; font-weight: 700; color: var(--text); }
-
 .lot-expiry { font-size: 11px; color: var(--text-tertiary); }
 
 .lot-expiry.text-danger { color: var(--danger); }
@@ -92,6 +90,22 @@ h4.group-subheading {
 
 .qty-btn .material-symbols-rounded { font-size: 17px; }
 
-.qty-num { min-width: 30px; text-align: center; font-size: 15px; font-weight: 700; color: var(--text); }
+.qty-num {
+  min-width: 30px; text-align: center; font-size: 15px; font-weight: 700; color: var(--text);
+  cursor: pointer; padding: 4px 8px; border-radius: 8px;
+  transition: background .15s ease;
+}
+
+.qty-num:hover, .qty-num:active { background: var(--primary-soft); }
+
+.qty-unit { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin-left: 3px; }
 
 .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.item-subgroup { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+.item-subgroup:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+.item-subgroup-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+
+.item-subname { font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-secondary); }

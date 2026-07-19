@@ -3,12 +3,82 @@
    食材消費画面専用(消費数量・手動検索結果など)
    ========================================================== */
 
-.consume-quantity, .consume-all-btn { margin-top: 0; }
+/* 商品を消費するオーバーレイ(商品マスタ詳細シートと同じ「下からせり上がるシート」パターン) */
+#consume-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn .2s ease;
+}
 
-.search-result-row { cursor: pointer; }
+#consume-overlay.hidden { display: none; }
 
-.search-result-row .material-symbols-rounded { color: var(--primary); }
+#consume-sheet {
+  background: var(--surface);
+  border-radius: 28px 28px 0 0;
+  width: 100%; max-width: 460px;
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px rgba(25,17,66,0.2);
+  animation: fadeSlideIn .25s ease;
+}
 
-#consume-scanner-wrap { margin-top: 4px; }
+/* 検索結果カード: 在庫確認画面・AI消費レビューと同じitem-cardの見た目に統一し、
+   ヘッダー(アイコン・商品名・在庫・賞味期限・シェブロン)をタップすると
+   同じカードの中でロット調整欄+確定ボタンが開閉する(継ぎ足しの別要素にしない) */
+.consume-search-card { padding: 14px 16px; }
 
-#consume-reader { width: 100%; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; }
+.consume-search-header {
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+}
+
+.consume-search-icon {
+  width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px;
+}
+
+.consume-search-info { flex: 1; min-width: 0; }
+
+.consume-search-chevron {
+  color: var(--text-tertiary); flex-shrink: 0;
+  transition: transform .2s ease, color .2s ease;
+}
+
+/* 展開中は枠線・影を強調し、どのカードを選択中かひと目でわかるようにする */
+.consume-search-card.expanded {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-2);
+}
+
+.consume-search-card.expanded .consume-search-chevron {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+/* 開閉時は、アプリ内の他のパネル(手動登録タブ等)と同じfadeSlideInで現れるようにする */
+.consume-search-detail {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+  animation: fadeSlideIn .3s ease;
+}
+
+.consume-search-detail.hidden { display: none; }
+
+.consume-confirm-btn { margin-top: 14px; }
+
+/* 消費数量の行: 上段(期限・数量)+下段(1/4・半分・すべて)の縦積みにする */
+.lot-row.consume-lot-row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+
+.lot-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.consume-fraction-row { display: flex; gap: 6px; }
+
+.consume-fraction-row .unit-chip { flex: 1; text-align: center; }

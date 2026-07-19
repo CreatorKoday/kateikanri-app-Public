@@ -1,0 +1,107 @@
+/* ==========================================================
+   KURA:S デザインシステム ― quantityPicker.css
+   4桁ドラムロール数量ピッカー専用(登録・在庫・消費の各画面から共通利用)
+   ========================================================== */
+
+#quantity-picker-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+  /* 商品詳細シートなど z-index:1000 の他オーバーレイの中からも呼ばれるため、
+     #calendar-overlay と同じく常に手前に表示されるよう 1100 にしている */
+  z-index: 1100;
+  animation: fadeIn .2s ease;
+}
+
+#quantity-picker-overlay.hidden { display: none; }
+
+#quantity-picker-sheet {
+  background: var(--surface);
+  width: 100%; max-width: 460px;
+  border-radius: 28px 28px 0 0;
+  padding: 8px 20px calc(22px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px rgba(25, 17, 66, 0.2);
+  animation: fadeSlideIn .28s cubic-bezier(.19, 1, .22, 1);
+}
+
+.qty-picker-drag-handle {
+  width: 36px; height: 4px;
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  margin: 6px auto 12px;
+}
+
+.qty-picker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+
+.qty-picker-text-btn {
+  background: none; width: auto; height: auto; margin: 0; padding: 6px 4px;
+  font-size: 15px; font-weight: 600; color: var(--text-secondary);
+}
+
+.qty-picker-text-btn.qty-picker-done { color: var(--primary); font-weight: 700; }
+
+.qty-picker-title {
+  font-size: 13px; font-weight: 700; color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.qty-wheel-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 220px;
+  margin-top: 14px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 28%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 28%, #000 72%, transparent 100%);
+}
+
+.qty-picker-unit {
+  font-size: 15px; font-weight: 700; color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.qty-wheel-col {
+  width: 52px; height: 220px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.qty-wheel-col::-webkit-scrollbar { display: none; }
+
+.qty-wheel-spacer { height: 88px; }
+
+.qty-wheel-item {
+  height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 24px; font-weight: 700;
+  color: var(--text-tertiary);
+  scroll-snap-align: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qty-wheel-item.is-center { color: var(--primary); }
+
+.qty-wheel-selection-window {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%; transform: translateY(-50%);
+  height: 44px;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--primary-soft);
+  opacity: 0.55;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}

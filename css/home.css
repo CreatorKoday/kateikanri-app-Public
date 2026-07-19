@@ -125,7 +125,7 @@
 
 .home-action-sub-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-top: 10px;
 }
@@ -137,9 +137,6 @@
 .home-action-sub-grid .action-menu-icon .material-symbols-rounded { font-size: 18px; }
 
 .home-action-sub-grid .action-menu-label { font-size: 11px; }
-
-/* 手動フォーム/検索欄をその場で差し替え表示する際の余白(サブ選択と同じ間隔) */
-.home-action-group .tab-panel { margin-top: 10px; }
 
 .action-menu-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

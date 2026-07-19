@@ -10,12 +10,6 @@
 
 .accordion-panel-header h2 { margin: 0; }
 
-.tab-panel { display: none; animation: fadeSlideIn .3s ease; }
-
-.tab-panel.active { display: block; }
-
-.scan-hint { font-size: 11px; color: var(--text-tertiary); text-align: center; margin: 10px 0 14px; }
-
 .review-badge {
   display: inline-block; background: var(--primary-soft); color: var(--primary);
   border-radius: var(--radius-pill); padding: 3px 10px; font-size: 10px; font-weight: 700;

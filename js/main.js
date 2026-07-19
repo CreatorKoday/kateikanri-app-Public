@@ -9,7 +9,7 @@ import "./elements.js";
 import "./utils.js";
 
 import "./quantity.js";
-import "./tags.js";
+import "./quantityPicker.js";
 import "./units.js";
 
 import "./shopping.js";
@@ -18,7 +18,6 @@ import "./productDetail.js";
 import "./shoppingPurchase.js";
 
 import "./aiPhoto.js";
-import "./barcode.js";
 import "./consume.js";
 
 import "./navigation.js";

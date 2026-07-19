@@ -31,14 +31,3 @@
 .check-btn:hover { transform: translateY(-1px) scale(1.04); }
 
 .check-btn .material-symbols-rounded { font-size: 18px; }
-
-.shopping-edit-btn {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: var(--bg-1); border: none; color: var(--text-tertiary);
-  padding: 0; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-
-.shopping-edit-btn:hover { background: var(--primary-soft); color: var(--primary); }
-
-.shopping-edit-btn .material-symbols-rounded { font-size: 16px; }

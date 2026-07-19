@@ -35,6 +35,21 @@ export function guessUnitOptions(name) {
   return ["個"];
 }
 
+// 単位チップ(候補ボタン群)を描画し、クリックでunitInputへ反映する共通処理
+function renderUnitChips(units, unitInput, suggestBox) {
+  suggestBox.innerHTML = units.map(u =>
+    `<button type="button" class="unit-chip ${u === unitInput.value ? "selected" : ""}" data-unit="${escapeHtml(u)}">${escapeHtml(u)}</button>`
+  ).join("");
+  suggestBox.querySelectorAll(".unit-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      unitInput.value = chip.dataset.unit;
+      suggestBox.querySelectorAll(".unit-chip").forEach(c => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      unitInput.dispatchEvent(new Event("input"));
+    });
+  });
+}
+
 // 商品名 → 単位の自動提案(共通ロジック)。手動登録以外の画面(買い物リストからの
 // 在庫登録など)でも同じ挙動を再利用できるよう、対象の要素を引数で受け取る。
 // 単位が変わったら unitInput に "input" イベントを発火するので、呼び出し側は
@@ -50,37 +65,36 @@ export function applyUnitSuggestions({ nameInput, unitInput, suggestBox }) {
   const options = guessUnitOptions(name);
 
   if (options.length === 1) {
-    // 単位が確実な場合: 自動入力するが、そのまま手入力でも変更できる
+    // 単位が確実な場合: 自動入力しつつ、個数・重さ・容量への切り替えは
+    // 常に選べるようにしておく
     unitInput.value = options[0];
-    suggestBox.innerHTML = "";
+    renderUnitChips(["個", "g", "ml"], unitInput, suggestBox);
   } else {
-    // 複数の可能性がある場合: 候補だけをボタンで表示して選ばせる
+    // 複数の可能性がある場合: 候補をボタンで表示して選ばせる
     if (!options.includes(unitInput.value)) {
       unitInput.value = options[0];
     }
-    suggestBox.innerHTML = options.map(u =>
-      `<button type="button" class="unit-chip ${u === unitInput.value ? "selected" : ""}" data-unit="${escapeHtml(u)}">${escapeHtml(u)}</button>`
-    ).join("");
-    suggestBox.querySelectorAll(".unit-chip").forEach(chip => {
-      chip.addEventListener("click", () => {
-        unitInput.value = chip.dataset.unit;
-        suggestBox.querySelectorAll(".unit-chip").forEach(c => c.classList.remove("selected"));
-        chip.classList.add("selected");
-        unitInput.dispatchEvent(new Event("input"));
-      });
-    });
+    renderUnitChips(options, unitInput, suggestBox);
   }
   unitInput.dispatchEvent(new Event("input"));
 }
 
-// ホーム画面(手動登録)向けの薄いラッパー。既存の呼び出し元(barcode.js の
-// updateUnitSuggestions() 引数なし呼び出し)に影響しないよう、挙動は変更しない。
+// ホーム画面(手動登録)向けの薄いラッパー。
+// 商品名が未入力の間は共通ロジック(applyUnitSuggestions)が何も表示しない仕様だが、
+// 右隣の数量・消費期限欄には常時表示のクイック調整ボタンがあり見た目のバランスが崩れるため、
+// このラッパーだけ未入力時も既定の「個」「g」「ml」チップを表示する
+// (unitInput.valueは書き換えない。ユーザーが単位を手入力済みの場合に上書きしないため)
 export function updateUnitSuggestions() {
-  applyUnitSuggestions({
-    nameInput: document.getElementById("item-name"),
-    unitInput: document.getElementById("item-unit"),
-    suggestBox: document.getElementById("item-unit-suggestions")
-  });
+  const nameInput = document.getElementById("item-name");
+  const unitInput = document.getElementById("item-unit");
+  const suggestBox = document.getElementById("item-unit-suggestions");
+
+  if (!nameInput.value.trim()) {
+    renderUnitChips(["個", "g", "ml"], unitInput, suggestBox);
+    return;
+  }
+
+  applyUnitSuggestions({ nameInput, unitInput, suggestBox });
 }
 
 document.getElementById("item-name").addEventListener("input", updateUnitSuggestions);

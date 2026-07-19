@@ -243,7 +243,7 @@ button:active { transform: scale(0.96); }
 .hidden { display: none; }
 
 .app-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-direction: column;
   padding: 10px 16px;
   margin-bottom: 20px;
   background: var(--surface-glass);
@@ -252,6 +252,10 @@ button:active { transform: scale(0.96); }
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-1);
+}
+
+.app-header-top {
+  display: flex; align-items: center; justify-content: space-between;
 }
 
 .app-header-logo {
@@ -280,6 +284,30 @@ button:active { transform: scale(0.96); }
 }
 
 .app-header-user button:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* 画面上部の共通通知欄(登録・消費・買い物リスト追加などの完了メッセージをここに集約する)。
+   独立したカードにはせず、KURA:Sロゴと同じ.app-header内に収め、カードの縦幅を広げて表示する */
+.app-notice {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeSlideIn .25s ease;
+}
+
+.app-notice.hidden { display: none; }
+
+/* 手動登録・手動消費の完了検知に使う旧メッセージ欄は、成功時の見た目だけ非表示にする
+   (表示は #app-notice に一本化。エラー時は今までどおりここに赤字で表示する) */
+#manual-add-message.msg-ok,
+#manual-consume-message.msg-ok,
+#add-message.msg-ok,
+#consume-message.msg-ok {
+  display: none;
+}
 
 .nav-bar {
   position: fixed;
