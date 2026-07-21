@@ -17,7 +17,7 @@ import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix } fro
 import { syncShoppingListForItem, addToShoppingList, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit, computeCombinedStockQuantity, representativeUnitForEntries } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { resolveProductMaster, computeItemSearchScore } from "./productMaster.js";
+import { resolveProductMaster, computeItemSearchScore, normalizeProductName } from "./productMaster.js";
 import { updateUnitSuggestions } from "./units.js";
 
 // 手動登録画面の数量欄(4桁ドラムロールピッカーで選択した値を保持する)
@@ -69,8 +69,54 @@ function renderManualQuantityQuickAdjustLabels() {
 document.getElementById("item-unit").addEventListener("input", () => {
   renderManualQuantityQuickAdjustLabels();
   applyManualQuantityDefault();
+  updatePriceModeLabels();
 });
 renderManualQuantityQuickAdjustLabels();
+
+// ---------- 価格入力の「1つ当たり/合計金額」切替 ----------
+// 個数系の単位は[1つ当たり|合計金額]、定量系(g/ml等)は[100◯当たり|購入金額]の2択。
+// 登録時、「1つ当たり/100◯当たり」はそのまま単価として保存し、「合計金額/購入金額」は
+// 数量で割って単価に変換してから保存する(item_lots.priceは常に「1つ当たりの単価」を表す)
+let priceMode = "total";
+const priceModeToggleEl = document.getElementById("item-price-mode-toggle");
+const priceModeUnitBtn = document.getElementById("item-price-mode-unit-btn");
+const priceModeTotalBtn = document.getElementById("item-price-mode-total-btn");
+
+function updatePriceModeLabels() {
+  const unit = document.getElementById("item-unit").value.trim();
+  const continuous = isContinuousUnit(unit);
+  priceModeUnitBtn.textContent = continuous ? `100${unit}当たり` : "1つ当たり";
+  priceModeTotalBtn.textContent = continuous ? "購入金額" : "合計金額";
+}
+
+function setPriceMode(mode) {
+  priceMode = mode;
+  priceModeToggleEl.dataset.mode = mode;
+  priceModeUnitBtn.classList.toggle("active", mode === "unit");
+  priceModeTotalBtn.classList.toggle("active", mode === "total");
+}
+
+priceModeUnitBtn.addEventListener("click", () => {
+  priceManuallyEdited = true;
+  setPriceMode("unit");
+});
+priceModeTotalBtn.addEventListener("click", () => {
+  priceManuallyEdited = true;
+  setPriceMode("total");
+});
+
+// 価格欄の入力値(価格モードに応じた表示上の値)を、item_lots.priceに保存する
+// 「1つ当たりの単価」に変換する。数量が無い(0以下)場合や未入力の場合はnull
+function computeStoredUnitPrice(inputValue, mode, unit, quantity) {
+  if (inputValue === "" || inputValue === null || inputValue === undefined) return null;
+  const value = Number(inputValue);
+  if (Number.isNaN(value)) return null;
+  if (mode === "unit") return value;
+
+  const qty = Number(quantity) || 0;
+  if (qty <= 0) return null;
+  return isContinuousUnit(unit) ? Math.round((value * 100) / qty) : Math.round(value / qty);
+}
 
 manualQuantityQuickMinusBtn.addEventListener("click", () => {
   manualQuantityValue = Math.max(0, manualQuantityValue - manualQuantityStep());
@@ -108,6 +154,10 @@ export function resetManualRegisterForm() {
   renderManualQuantityDisplay();
   document.getElementById("item-expiry").value = "";
   document.getElementById("item-type-fallback").classList.add("hidden");
+  document.getElementById("item-price").value = "";
+  priceManuallyEdited = false;
+  setPriceMode("total");
+  updatePriceModeLabels();
   hideNameSuggestions();
 }
 
@@ -143,6 +193,7 @@ export function openRegisterManualOverlay() {
   registerManualSectionEl.classList.remove("hidden");
   openRegisterOverlay();
   loadNameSuggestionPool();
+  loadPriceAverages();
   updateUnitSuggestions(); // 商品名が未入力の段階から既定の単位チップを表示する
 }
 
@@ -158,6 +209,8 @@ export function openRegisterManualOverlayForPurchase({ shoppingId, name, unit, q
 
   document.getElementById("item-type-fallback").classList.add("hidden");
   document.getElementById("item-expiry").value = "";
+  document.getElementById("item-price").value = "";
+  priceManuallyEdited = false;
   document.getElementById("add-to-shopping-manual-btn").classList.add("hidden");
   hideNameSuggestions();
 
@@ -175,8 +228,11 @@ export function openRegisterManualOverlayForPurchase({ shoppingId, name, unit, q
     document.getElementById("item-unit").value = "個";
     updateUnitSuggestions(); // 新規商品は手動登録と同じ、商品名からの単位自動提案を行う
   }
+  setPriceMode("total");
+  updatePriceModeLabels();
 
   loadNameSuggestionPool();
+  loadPriceAverages().then(() => applyPricePrefill(document.getElementById("item-name").value));
   purchaseShoppingId = shoppingId;
 }
 
@@ -200,7 +256,7 @@ let detailOptionAnchorValue = null;
 async function loadNameSuggestionPool() {
   const [{ data: itemRows }, { data: masterRows }] = await Promise.all([
     supabaseClient.from("items").select("name"),
-    supabaseClient.from("product_master").select("canonical_name, canonical_name_reading")
+    supabaseClient.from("product_master").select("id, canonical_name, canonical_name_reading")
   ]);
 
   const seen = new Set();
@@ -217,11 +273,94 @@ async function loadNameSuggestionPool() {
     const name = (row.canonical_name || "").trim();
     if (!name || seen.has(name)) return;
     seen.add(name);
-    pool.push({ text: name, reading: row.canonical_name_reading || "", isCanonical: true });
+    pool.push({ text: name, reading: row.canonical_name_reading || "", isCanonical: true, productMasterId: row.id });
   });
 
   nameSuggestionPool = pool;
 }
+
+// ---------- 価格の初期値(過去の平均価格をプリフィルする) ----------
+//
+// 商品名欄の「,」より前(parseNameWithDetailの検索キー)が、既存の商品名または
+// 標準商品名と完全一致(normalizeProductNameでの比較)した場合に、その平均価格
+// (整数に丸める)を価格欄へ自動入力する。商品名が一致すればその商品名だけの
+// 平均、無ければ標準商品名が同じすべての商品の平均を使う。ユーザーが価格欄を
+// 一度でも手動編集したら、以後は自動上書きしない
+let itemPriceAverageByNormalizedName = new Map();
+let masterPriceAverageByMasterId = new Map();
+let priceManuallyEdited = false;
+
+async function loadPriceAverages() {
+  const { data: lots } = await supabaseClient
+    .from("item_lots")
+    .select("price, items(name, product_master_id)");
+
+  const itemAgg = new Map();
+  const masterAgg = new Map();
+
+  (lots || []).forEach(lot => {
+    if (lot.price === null || lot.price === undefined) return;
+    const item = lot.items;
+    if (!item) return;
+    const price = Number(lot.price);
+
+    const normalizedName = normalizeProductName(item.name);
+    if (normalizedName) {
+      const cur = itemAgg.get(normalizedName) || { sum: 0, count: 0 };
+      cur.sum += price;
+      cur.count += 1;
+      itemAgg.set(normalizedName, cur);
+    }
+
+    if (item.product_master_id) {
+      const cur = masterAgg.get(item.product_master_id) || { sum: 0, count: 0 };
+      cur.sum += price;
+      cur.count += 1;
+      masterAgg.set(item.product_master_id, cur);
+    }
+  });
+
+  itemPriceAverageByNormalizedName = itemAgg;
+  masterPriceAverageByMasterId = masterAgg;
+}
+
+// 検索キー(商品名欄の「,」より前)から、平均価格(整数)を求める。
+// 商品名(items.name)への完全一致を優先し、無ければ標準商品名(canonical_name)への
+// 完全一致を試す。どちらにも一致しなければnull
+function findPriceSuggestion(searchName) {
+  const normalized = normalizeProductName(searchName);
+  if (!normalized) return null;
+
+  const itemAvg = itemPriceAverageByNormalizedName.get(normalized);
+  if (itemAvg && itemAvg.count > 0) return Math.round(itemAvg.sum / itemAvg.count);
+
+  const masterEntry = nameSuggestionPool.find(e => e.isCanonical && normalizeProductName(e.text) === normalized);
+  if (masterEntry && masterEntry.productMasterId) {
+    const masterAvg = masterPriceAverageByMasterId.get(masterEntry.productMasterId);
+    if (masterAvg && masterAvg.count > 0) return Math.round(masterAvg.sum / masterAvg.count);
+  }
+
+  return null;
+}
+
+function applyPricePrefill(rawValue) {
+  if (priceManuallyEdited) return;
+  const { searchName } = parseNameWithDetail(rawValue);
+  const suggested = findPriceSuggestion(searchName);
+  if (suggested !== null) {
+    // 平均価格は常に「1つ当たりの単価」なので、モードもそちらに合わせる
+    document.getElementById("item-price").value = suggested;
+    setPriceMode("unit");
+  } else {
+    document.getElementById("item-price").value = "";
+    setPriceMode("total");
+  }
+}
+
+// ユーザーが価格欄を一度でも手動編集したら、以後は自動プリフィルで上書きしない
+document.getElementById("item-price").addEventListener("input", () => {
+  priceManuallyEdited = true;
+});
 
 // 一致度: 完全一致 > 前方一致 > 部分一致(標準商品名はひらがな読みも対象に判定する)
 function matchQuality(text, t) {
@@ -333,6 +472,7 @@ itemNameInput.addEventListener("input", () => {
   // (標準商品名を選んだ場合はlastSelectedSuggestionValueを記録していないため、ここには来ない)
   if (value && value === lastSelectedSuggestionValue) {
     renderNameSuggestions("");
+    applyPricePrefill(value);
     return;
   }
   // 選択直後の値からさらに変更された場合は、詳細入力オプションは役目を終えたので消す
@@ -341,6 +481,7 @@ itemNameInput.addEventListener("input", () => {
   }
   lastSelectedSuggestionValue = null;
   renderNameSuggestions(value);
+  applyPricePrefill(value);
 });
 
 itemNameInput.addEventListener("focus", () => {
@@ -907,7 +1048,8 @@ async function resolveItem({ name, category, unit }) {
 // 商品(itemId)に対して、同じ賞味期限(未設定同士も含む)のロットがあれば数量を加算、
 // なければ新しいロットを作成する。賞味期限が異なる場合は必ず新規ロットになる。
 // (買い物リストからの在庫登録など、既存商品にロットだけ追加したい他の処理からも再利用する)
-export async function resolveLot(itemId, quantity, expiryDate) {
+// price: 未入力(null/undefined/空文字)なら記録しない(既存ロットへの加算時は既存の価格をそのまま残す)
+export async function resolveLot(itemId, quantity, expiryDate, price) {
   let findQuery = supabaseClient.from("item_lots").select("id, quantity").eq("item_id", itemId);
   findQuery = expiryDate ? findQuery.eq("expiry_date", expiryDate) : findQuery.is("expiry_date", null);
   const { data: existingList, error: findError } = await findQuery.limit(1);
@@ -915,12 +1057,15 @@ export async function resolveLot(itemId, quantity, expiryDate) {
   if (findError) { console.error("既存ロットの検索に失敗:", findError); return null; }
 
   const existing = existingList && existingList.length > 0 ? existingList[0] : null;
+  const priceValue = (price === undefined || price === null || price === "") ? null : Number(price);
 
   if (existing) {
     const newQuantity = Number(existing.quantity) + Number(quantity || 0);
+    const updatePayload = { quantity: newQuantity, updated_at: new Date().toISOString() };
+    if (priceValue !== null) updatePayload.price = priceValue;
     const { error: updateError } = await supabaseClient
       .from("item_lots")
-      .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq("id", existing.id);
     if (updateError) { console.error("ロットの更新に失敗:", updateError); return null; }
     return existing.id;
@@ -930,7 +1075,8 @@ export async function resolveLot(itemId, quantity, expiryDate) {
       .insert({
         item_id: itemId,
         quantity: Number(quantity || 0),
-        expiry_date: expiryDate || null
+        expiry_date: expiryDate || null,
+        price: priceValue
       });
     if (insertError) { console.error("ロットの登録に失敗:", insertError); return null; }
     return true;
@@ -941,12 +1087,12 @@ export async function resolveLot(itemId, quantity, expiryDate) {
 // AI写真登録・手動登録のすべてがこの関数を経由する。
 // 戻り値: 成功時は { itemId, productMasterStatus }、失敗時はnull、商品マスタの自動判定に
 // 失敗し種別の手入力が必要な場合は { needsCategory: true }(呼び出し元はcategoryを付けて再実行する)
-export async function upsertItemByName({ name, category, unit, quantity, expiry_date }) {
+export async function upsertItemByName({ name, category, unit, quantity, expiry_date, price }) {
   const { itemId, needsCategory, productMasterStatus } = await resolveItem({ name, category, unit });
   if (needsCategory) return { needsCategory: true };
   if (!itemId) return null;
 
-  const lotResult = await resolveLot(itemId, quantity, expiry_date);
+  const lotResult = await resolveLot(itemId, quantity, expiry_date, price);
   if (!lotResult) return null;
 
   await syncShoppingListForItem(itemId);
@@ -1270,6 +1416,7 @@ document.getElementById("add-item-btn").addEventListener("click", async () => {
   const unit = document.getElementById("item-unit").value.trim() || "個";
   const quantity = manualQuantityValue;
   const expiry = document.getElementById("item-expiry").value || null;
+  const price = computeStoredUnitPrice(document.getElementById("item-price").value, priceMode, unit, quantity);
   const typeFallback = document.getElementById("item-type-fallback");
   const category = typeFallback.classList.contains("hidden") ? undefined : document.getElementById("item-type").value;
 
@@ -1279,7 +1426,7 @@ document.getElementById("add-item-btn").addEventListener("click", async () => {
   }
 
   const result = await upsertItemByName({
-    name, category, unit, quantity, expiry_date: expiry
+    name, category, unit, quantity, expiry_date: expiry, price
   });
 
   if (result && result.needsCategory) {

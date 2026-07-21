@@ -546,12 +546,22 @@
         </div>
       </div>
 
-      <div>
-        <label for="item-expiry">消費・賞味期限</label>
-        <input type="text" id="item-expiry" class="date-display" placeholder="未設定" readonly>
-        <div class="qty-quick-adjust-row" id="item-expiry-quick-adjust">
-          <button type="button" class="unit-chip" id="item-expiry-quick-minus">－1日</button>
-          <button type="button" class="unit-chip" id="item-expiry-quick-plus">＋1日</button>
+      <div class="row2">
+        <div>
+          <label for="item-price">価格(円・任意)</label>
+          <input type="number" id="item-price" placeholder="例: 198" inputmode="numeric" min="0">
+          <div class="price-mode-toggle" id="item-price-mode-toggle" data-mode="total">
+            <button type="button" class="price-mode-option" data-mode="unit" id="item-price-mode-unit-btn">1つ当たり</button>
+            <button type="button" class="price-mode-option active" data-mode="total" id="item-price-mode-total-btn">合計金額</button>
+          </div>
+        </div>
+        <div>
+          <label for="item-expiry">消費・賞味期限</label>
+          <input type="text" id="item-expiry" class="date-display" placeholder="未設定" readonly>
+          <div class="qty-quick-adjust-row" id="item-expiry-quick-adjust">
+            <button type="button" class="unit-chip" id="item-expiry-quick-minus">－1日</button>
+            <button type="button" class="unit-chip" id="item-expiry-quick-plus">＋1日</button>
+          </div>
         </div>
       </div>
 

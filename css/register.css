@@ -96,6 +96,27 @@
 
 .qty-quick-adjust-row .unit-chip { flex: 1; text-align: center; }
 
+/* 価格入力の「1つ当たり/合計金額」切替。連結した2分割のON/OFFスイッチのような見た目にする
+   (unit-chipのように離れた2つのボタンではなく、片側だけ色がつく一体型にするため専用のクラスにしている) */
+.price-mode-toggle {
+  display: flex;
+  margin-top: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.price-mode-option {
+  flex: 1; height: auto;
+  padding: 6px 4px; margin: 0;
+  background: var(--surface); color: var(--text-tertiary);
+  border: none; border-radius: 0;
+  font-size: 11px; font-weight: 600;
+  text-align: center;
+}
+
+.price-mode-option.active { background: var(--primary); color: #fff; }
+
 .qty-picker-trigger {
   width: 100%; height: 50px;
   display: flex; align-items: center; justify-content: space-between;
