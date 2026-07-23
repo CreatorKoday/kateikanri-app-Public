@@ -13,7 +13,7 @@
 }
 
 .balance-table th {
-  text-align: left;
+  text-align: center;
   padding: 6px 4px;
   background: var(--bg-1);
   color: var(--text-tertiary);
@@ -21,8 +21,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.balance-table th:nth-child(1),
-.balance-table th:nth-child(3) { border-right: 1px solid var(--border); }
+.balance-table th:nth-child(1) { border-right: 1px solid var(--border); }
 
 .balance-table td {
   padding: 6px 4px;
@@ -30,14 +29,7 @@
   overflow-wrap: break-word;
 }
 
-.balance-table th:nth-child(1), .balance-table td:nth-child(1),
-.balance-table th:nth-child(3), .balance-table td:nth-child(3) { width: 30%; }
-.balance-table th:nth-child(2), .balance-table td:nth-child(2),
-.balance-table th:nth-child(4), .balance-table td:nth-child(4) { width: 20%; }
-
-.balance-table td:nth-child(2) { text-align: right; }
-.balance-table td:nth-child(1) { border-right: 1px solid var(--border); }
-.balance-table td:nth-child(3) { border-right: 1px solid var(--border); }
+.balance-table td:nth-child(2) { text-align: right; border-right: 1px solid var(--border); }
 .balance-table td:nth-child(4) { text-align: right; }
 
 .balance-total-row td {
@@ -45,4 +37,33 @@
   color: var(--text);
   border-top: 2px solid var(--primary);
   border-bottom: none;
+}
+
+/* 月ラベル・年月選択オーバーレイ(サマリーページの#summary-cal-month-label/
+   #summary-yearmonth-overlayと同じ見た目) */
+#balance-cal-month-label {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700; font-size: 16px; color: var(--text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 4px;
+}
+
+#balance-yearmonth-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1100; padding: 20px;
+  animation: fadeIn .2s ease;
+}
+
+#balance-yearmonth-overlay.hidden { display: none; }
+
+#balance-yearmonth-modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 22px;
+  width: 100%; max-width: 340px;
+  box-shadow: var(--shadow-3);
+  animation: fadeSlideIn .25s ease;
 }

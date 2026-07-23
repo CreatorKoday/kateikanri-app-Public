@@ -109,9 +109,54 @@ document.getElementById("balance-cal-next").addEventListener("click", () => {
   loadBalanceSheet();
 });
 
+// 年月のプルダウン選択。サマリーページと同じく、月ラベルのタップで背景をぼかした
+// オーバーレイを開き、年・月のどちらかを選ぶと即座に確定する
+const balanceYearSelect = document.getElementById("balance-cal-year-select");
+const balanceMonthSelect = document.getElementById("balance-cal-month-select");
+for (let m = 1; m <= 12; m++) {
+  const opt = document.createElement("option");
+  opt.value = m;
+  opt.textContent = m + "月";
+  balanceMonthSelect.appendChild(opt);
+}
+
+function closeBalanceYearMonthOverlay() {
+  document.getElementById("balance-yearmonth-overlay").classList.add("hidden");
+}
+
+document.getElementById("balance-cal-month-label").addEventListener("click", () => {
+  const currentYear = new Date().getFullYear();
+  const viewYear = balanceViewDate.getFullYear();
+  balanceYearSelect.innerHTML = "";
+  for (let y = currentYear; y <= currentYear + 10; y++) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = y + "年";
+    if (y === viewYear) opt.selected = true;
+    balanceYearSelect.appendChild(opt);
+  }
+  balanceMonthSelect.value = balanceViewDate.getMonth() + 1;
+
+  document.getElementById("balance-yearmonth-overlay").classList.remove("hidden");
+});
+
+document.getElementById("balance-yearmonth-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "balance-yearmonth-overlay") closeBalanceYearMonthOverlay();
+});
+document.getElementById("balance-yearmonth-close-btn").addEventListener("click", closeBalanceYearMonthOverlay);
+
+function applyBalanceYearMonthSelection() {
+  balanceViewDate = new Date(Number(balanceYearSelect.value), Number(balanceMonthSelect.value) - 1, 1);
+  closeBalanceYearMonthOverlay();
+  loadBalanceSheet();
+}
+balanceYearSelect.addEventListener("change", applyBalanceYearMonthSelection);
+balanceMonthSelect.addEventListener("change", applyBalanceYearMonthSelection);
+
 document.getElementById("balance-open-btn").addEventListener("click", () => {
   switchView("balance");
   balanceViewDate = new Date();
+  closeBalanceYearMonthOverlay();
   loadBalanceSheet();
 });
 document.getElementById("balance-back-btn").addEventListener("click", () => switchView("history"));

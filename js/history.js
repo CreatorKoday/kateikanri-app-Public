@@ -202,6 +202,37 @@ function renderHistoryTable() {
   tbody.innerHTML = filtered.map(editMode ? historyEditRowHtml : historyViewRowHtml).join("");
 }
 
+// ---------- 拡大表示(iPhoneのSafariは画面回転ロックAPIに未対応のため、CSSで
+// 表全体を90度回転させることで、端末を回転させなくても横長レイアウトで見られるようにする) ----------
+// 開いた時点の表示内容(フィルター・並び替え適用済み)をそのまま読み取り専用で表示するだけの
+// スナップショットで、編集モードはここでは扱わない
+function renderHistoryExpandTable() {
+  const tbody = document.getElementById("history-expand-table-body");
+  const table = tbody.closest("table");
+  table.classList.toggle("day-view", isSingleDayHistoryView());
+
+  if (lastHistoryData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8">まだ購入・消費の記録がありません。</td></tr>';
+    return;
+  }
+
+  const filtered = lastHistoryData.filter(matchesHistoryFilters).sort(compareHistoryRows);
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8">条件に一致する記録がありません。</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(historyViewRowHtml).join("");
+}
+
+document.getElementById("history-expand-btn").addEventListener("click", () => {
+  renderHistoryExpandTable();
+  document.getElementById("history-expand-overlay").classList.remove("hidden");
+});
+document.getElementById("history-expand-close-btn").addEventListener("click", () => {
+  document.getElementById("history-expand-overlay").classList.add("hidden");
+});
+
 // サマリーページのカレンダーで日付をタップした時の入口。他の絞り込み条件(種別など)は
 // 維持したまま、日付の範囲だけをその1日に絞り込んで購入履歴ページへ遷移する
 export function openHistoryForDate(dateKey) {
