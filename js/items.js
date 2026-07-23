@@ -1045,6 +1045,34 @@ async function resolveItem({ name, category, unit }) {
   return { itemId: inserted.id, needsCategory: false, productMasterStatus };
 }
 
+// 購入・消費履歴(item_history)への記録。item_lotsは消費で0になると行ごと削除され、
+// 購入時も既存ロットへ数量を加算する場合があるため「今の在庫状態」であって履歴ではない。
+// 増減が起きるたびにこの関数で1行追記する(商品名・標準商品名はその時点のスナップショット)。
+// quantityは常に正の値(増減量そのもの)を渡す
+async function logItemHistory(itemId, eventType, quantity, price) {
+  if (!quantity || quantity <= 0) return;
+
+  const { data: item, error } = await supabaseClient
+    .from("items")
+    .select("name, unit, category, product_master_id, product_master(canonical_name, type)")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error || !item) { console.error("履歴用の商品情報取得に失敗:", error); return; }
+
+  const { error: insertError } = await supabaseClient.from("item_history").insert({
+    item_id: itemId,
+    item_name: item.name,
+    unit: item.unit,
+    product_master_id: item.product_master_id,
+    canonical_name: item.product_master ? item.product_master.canonical_name : null,
+    item_type: effectiveType(item),
+    event_type: eventType,
+    quantity: Number(quantity),
+    price: (price === undefined || price === null || price === "") ? null : Number(price)
+  });
+  if (insertError) console.error("購入・消費履歴の記録に失敗:", insertError);
+}
+
 // 商品(itemId)に対して、同じ賞味期限(未設定同士も含む)のロットがあれば数量を加算、
 // なければ新しいロットを作成する。賞味期限が異なる場合は必ず新規ロットになる。
 // (買い物リストからの在庫登録など、既存商品にロットだけ追加したい他の処理からも再利用する)
@@ -1068,6 +1096,7 @@ export async function resolveLot(itemId, quantity, expiryDate, price) {
       .update(updatePayload)
       .eq("id", existing.id);
     if (updateError) { console.error("ロットの更新に失敗:", updateError); return null; }
+    await logItemHistory(itemId, "purchase", quantity, priceValue);
     return existing.id;
   } else {
     const { error: insertError } = await supabaseClient
@@ -1079,6 +1108,7 @@ export async function resolveLot(itemId, quantity, expiryDate, price) {
         price: priceValue
       });
     if (insertError) { console.error("ロットの登録に失敗:", insertError); return null; }
+    await logItemHistory(itemId, "purchase", quantity, priceValue);
     return true;
   }
 }
@@ -1116,7 +1146,7 @@ function effectiveType(item) {
 export async function loadItems() {
   const { data, error } = await supabaseClient
     .from("items")
-    .select("*, item_lots(*), product_master(canonical_name, canonical_name_reading, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading, low_stock_threshold)")
+    .select("*, item_lots(*), product_master(canonical_name, canonical_name_reading, type, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading, low_stock_threshold)")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1476,9 +1506,16 @@ document.getElementById("add-to-shopping-manual-btn").addEventListener("click", 
 });
 
 // ロットの数量を指定した値に確定する。0以下になったロットは削除する(他のロットには影響しない)
-// 消費画面(js/consume.js)からも、ロット単位で指定した消費数量を直接反映するために再利用する
-export async function persistLotQty(lotId, itemId, newQty) {
+// 消費画面(js/consume.js)からも、ロット単位で指定した消費数量を直接反映するために再利用する。
+// previousQty(変更前の数量)は呼び出し元(画面に表示中の値)から受け取り、それとの差分を
+// 購入・消費履歴(item_history)へ記録する(増えれば購入、減れば消費)。呼び出し元が把握して
+// いる値をそのまま使うことで、再取得(RLS等の影響を受けうる)に依存しない
+export async function persistLotQty(lotId, itemId, newQty, previousQty) {
   const clamped = Math.max(0, newQty);
+  const oldQty = Number(previousQty) || 0;
+  const delta = clamped - oldQty;
+
+  const { data: currentLot } = await supabaseClient.from("item_lots").select("price").eq("id", lotId).maybeSingle();
 
   if (clamped <= 0) {
     const { error } = await supabaseClient.from("item_lots").delete().eq("id", lotId);
@@ -1491,13 +1528,17 @@ export async function persistLotQty(lotId, itemId, newQty) {
     if (error) { console.error("ロットの数量更新に失敗:", error); return; }
   }
 
+  const lotPrice = currentLot ? currentLot.price : null;
+  if (delta > 0) await logItemHistory(itemId, "purchase", delta, lotPrice);
+  else if (delta < 0) await logItemHistory(itemId, "consumption", -delta, lotPrice);
+
   await syncShoppingListForItem(itemId);
   loadItems();
 }
 
 // ロット単位の数量増減([-][+]ボタン)
 async function adjustLotQty(lotId, itemId, currentQty, delta) {
-  await persistLotQty(lotId, itemId, Number(currentQty) + delta);
+  await persistLotQty(lotId, itemId, Number(currentQty) + delta, currentQty);
 }
 
 // カード内のボタンはloadItems()のたびに再生成されるため、itemListElへの委譲で拾う
@@ -1514,7 +1555,7 @@ itemListEl.addEventListener("click", (e) => {
       initialValue: Number(qtyNum.dataset.qty),
       unit: qtyNum.dataset.unit,
       title: "在庫数を設定",
-      onConfirm: (value) => persistLotQty(qtyNum.dataset.lotId, qtyNum.dataset.itemId, value)
+      onConfirm: (value) => persistLotQty(qtyNum.dataset.lotId, qtyNum.dataset.itemId, value, qtyNum.dataset.qty)
     });
   }
 });

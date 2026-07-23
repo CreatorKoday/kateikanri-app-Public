@@ -27,6 +27,9 @@
 <link rel="stylesheet" href="css/calendar.css">
 <link rel="stylesheet" href="css/productDetail.css">
 <link rel="stylesheet" href="css/quantityPicker.css">
+<link rel="stylesheet" href="css/history.css">
+<link rel="stylesheet" href="css/summary.css">
+<link rel="stylesheet" href="css/balanceSheet.css">
 </head>
 <body>
 
@@ -168,17 +171,132 @@
           <span class="insight-title">家族共有</span>
           <span class="insight-desc">近日公開</span>
         </div>
-        <div class="insight-card muted">
+        <button type="button" class="insight-card" id="history-open-btn">
           <span class="insight-icon"><span class="material-symbols-rounded">history</span></span>
           <span class="insight-title">購入履歴</span>
-          <span class="insight-desc">近日公開</span>
-        </div>
+          <span class="insight-desc">一覧を見る</span>
+        </button>
       </div>
     </div>
 
     <div id="view-shopping" class="view hidden">
       <h2 class="view-title">買い物リスト</h2>
       <div id="shopping-list"></div>
+    </div>
+
+    <!-- 購入・消費履歴。ホーム画面の「購入履歴」カードから開く、在庫確認と同じ独立ページ
+         (下部ナビには無いため、戻るボタンでホームへ戻す) -->
+    <div id="view-history" class="view hidden">
+      <div class="history-title-row">
+        <button type="button" class="modal-close-btn" id="history-back-btn" aria-label="ホームに戻る">
+          <span class="material-symbols-rounded">arrow_back</span>
+        </button>
+        <h2 class="view-title">購入履歴</h2>
+        <button type="button" class="modal-close-btn history-edit-toggle-btn" id="history-edit-toggle-btn" aria-label="編集モード切替">
+          <span class="material-symbols-rounded">edit</span>
+        </button>
+      </div>
+      <div class="inventory-toolbar">
+        <button type="button" id="history-filter-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">tune</span>
+          <span class="inventory-filter-btn-label">フィルター</span>
+        </button>
+        <button type="button" id="history-sort-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">swap_vert</span>
+          <span>並び替え</span>
+        </button>
+        <button type="button" id="summary-open-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">calendar_month</span>
+          <span>サマリー</span>
+        </button>
+        <button type="button" id="balance-open-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">balance</span>
+          <span>収支表</span>
+        </button>
+      </div>
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>種別</th>
+              <th>標準商品名</th>
+              <th>商品名</th>
+              <th>区分</th>
+              <th>数量</th>
+              <th>価格</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 購入・消費のサマリー(月間カレンダー)。購入履歴ページの「サマリー」ボタンから開く、
+         在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで購入履歴へ戻す) -->
+    <div id="view-summary" class="view hidden">
+      <div class="history-title-row">
+        <button type="button" class="modal-close-btn" id="summary-back-btn" aria-label="購入履歴に戻る">
+          <span class="material-symbols-rounded">arrow_back</span>
+        </button>
+        <h2 class="view-title">サマリー</h2>
+      </div>
+      <div class="summary-calendar-header">
+        <button type="button" id="summary-cal-prev" aria-label="前の月"><span class="material-symbols-rounded">chevron_left</span></button>
+        <span id="summary-cal-month-label"></span>
+        <button type="button" id="summary-cal-next" aria-label="次の月"><span class="material-symbols-rounded">chevron_right</span></button>
+      </div>
+      <div class="summary-calendar-grid" id="summary-calendar-grid"></div>
+    </div>
+
+    <!-- サマリーの年月選択。消費期限カレンダーの年月選択(#calendar-overlay)と同じく、
+         画面の上の層に背景をぼかして表示するオーバーレイにする(グリッドに直置きしない) -->
+    <div id="summary-yearmonth-overlay" class="hidden">
+      <div id="summary-yearmonth-modal">
+        <div class="yearmonth-picker">
+          <select id="summary-cal-year-select"></select>
+          <select id="summary-cal-month-select"></select>
+        </div>
+        <div class="calendar-footer">
+          <button type="button" class="btn-secondary" id="summary-yearmonth-close-btn">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 在庫収支表(貸借対照表風)。購入履歴ページの「収支表」ボタンから開く、
+         在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで購入履歴へ戻す) -->
+    <div id="view-balance" class="view hidden">
+      <div class="history-title-row">
+        <button type="button" class="modal-close-btn" id="balance-back-btn" aria-label="購入履歴に戻る">
+          <span class="material-symbols-rounded">arrow_back</span>
+        </button>
+        <h2 class="view-title">在庫収支表</h2>
+      </div>
+      <div class="summary-calendar-header">
+        <button type="button" id="balance-cal-prev" aria-label="前の月"><span class="material-symbols-rounded">chevron_left</span></button>
+        <span id="balance-cal-month-label"></span>
+        <button type="button" id="balance-cal-next" aria-label="次の月"><span class="material-symbols-rounded">chevron_right</span></button>
+      </div>
+      <div class="balance-table-wrap">
+        <table class="balance-table">
+          <thead>
+            <tr>
+              <th colspan="2">借方(在庫)</th>
+              <th colspan="2">貸方</th>
+            </tr>
+          </thead>
+          <tbody id="balance-table-body"></tbody>
+          <tfoot>
+            <tr class="balance-total-row">
+              <td>総合計</td>
+              <td id="balance-total-left"></td>
+              <td>総合計</td>
+              <td id="balance-total-right"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
 
     <div id="view-inventory" class="view hidden">
@@ -491,6 +609,64 @@
     <div id="inventory-sort-actions" class="two-pane-actions">
       <button type="button" class="btn-secondary" id="inventory-sort-clear-btn">デフォルトに戻す</button>
       <button type="button" class="btn-primary" id="inventory-sort-apply-btn">並び替え</button>
+    </div>
+  </div>
+</div>
+
+<!-- 購入履歴の絞り込みフィルター(在庫確認画面と同じAmazon風2ペイン。日付・価格はチェックボックスでは
+     なく範囲入力(from/to)にする点だけ在庫確認画面と異なる) -->
+<div id="history-filter-overlay" class="two-pane-overlay hidden">
+  <div id="history-filter-sheet" class="two-pane-sheet">
+    <div class="accordion-panel-header">
+      <h2 style="margin:0;">絞り込み</h2>
+      <button type="button" class="modal-close-btn" id="history-filter-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+    <div id="history-filter-body" class="two-pane-body">
+      <div id="history-filter-types" class="two-pane-types"></div>
+      <div id="history-filter-options" class="two-pane-options"></div>
+    </div>
+    <div id="history-filter-summary" class="inventory-selection-summary hidden"></div>
+    <div id="history-filter-actions" class="two-pane-actions">
+      <button type="button" class="btn-secondary" id="history-filter-clear-btn">フィルターを解除</button>
+      <button type="button" class="btn-primary" id="history-filter-apply-btn">結果を表示</button>
+    </div>
+  </div>
+</div>
+
+<!-- 購入履歴の並び替え。在庫確認画面の並び替え(2ペイン+階層タブ)のような構成にはせず、
+     商品登録の「1つ当たり/合計金額」と同じデザインのスイッチを3段並べるだけの単純な構成にする -->
+<div id="history-sort-overlay" class="hidden">
+  <div id="history-sort-sheet">
+    <div class="accordion-panel-header">
+      <h2 style="margin:0;">並び替え</h2>
+      <button type="button" class="modal-close-btn" id="history-sort-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+    <div class="history-sort-row">
+      <label>日付</label>
+      <div class="price-mode-toggle history-sort-toggle" data-field="date">
+        <button type="button" class="price-mode-option" data-value="desc">新しい順</button>
+        <button type="button" class="price-mode-option" data-value="asc">古い順</button>
+      </div>
+    </div>
+    <div class="history-sort-row">
+      <label>区分(同じ日付の中で)</label>
+      <div class="price-mode-toggle history-sort-toggle" data-field="eventType">
+        <button type="button" class="price-mode-option" data-value="none">指定なし</button>
+        <button type="button" class="price-mode-option" data-value="consumption-first">消費が上</button>
+        <button type="button" class="price-mode-option" data-value="purchase-first">購入が上</button>
+      </div>
+    </div>
+    <div class="history-sort-row">
+      <label>金額</label>
+      <div class="price-mode-toggle history-sort-toggle" data-field="amount">
+        <button type="button" class="price-mode-option" data-value="none">指定なし</button>
+        <button type="button" class="price-mode-option" data-value="desc">高い順</button>
+        <button type="button" class="price-mode-option" data-value="asc">安い順</button>
+      </div>
+    </div>
+    <div class="history-sort-actions">
+      <button type="button" class="btn-secondary" id="history-sort-clear-btn">デフォルトに戻す</button>
+      <button type="button" class="btn-primary" id="history-sort-apply-btn">並び替え</button>
     </div>
   </div>
 </div>

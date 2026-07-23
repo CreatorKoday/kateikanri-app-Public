@@ -23,6 +23,9 @@ import "./consume.js";
 import "./navigation.js";
 import "./auth.js";
 import "./home.js";
+import "./history.js";
+import "./summary.js";
+import "./balanceSheet.js";
 
 import "./calendar.js";
 

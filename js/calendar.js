@@ -57,7 +57,11 @@ function renderCalendar() {
 
   document.querySelectorAll("#calendar-grid .cal-day:not(.empty)").forEach(el => {
     el.addEventListener("click", () => {
-      if (calendarTargetInput) calendarTargetInput.value = el.dataset.date;
+      if (calendarTargetInput) {
+        calendarTargetInput.value = el.dataset.date;
+        // 呼び出し元がchangeイベントを監視して反応できるようにする(値の直接代入だけでは発火しないため)
+        calendarTargetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       closeCalendar();
     });
   });
@@ -111,7 +115,10 @@ function applyYearMonthSelection() {
 yearSelect.addEventListener("change", applyYearMonthSelection);
 monthSelect.addEventListener("change", applyYearMonthSelection);
 document.getElementById("cal-clear").addEventListener("click", () => {
-  if (calendarTargetInput) calendarTargetInput.value = "";
+  if (calendarTargetInput) {
+    calendarTargetInput.value = "";
+    calendarTargetInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   closeCalendar();
 });
 document.getElementById("cal-close").addEventListener("click", closeCalendar);

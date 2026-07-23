@@ -171,7 +171,7 @@ async function confirmConsume() {
       const remainingQty = Number(numEl.dataset.qty) || 0;
       const originalQty = Number(numEl.dataset.originalQty) || 0;
       if (remainingQty >= originalQty) continue; // 残り数量が変わっていない = 消費しない
-      await persistLotQty(numEl.dataset.lotId, itemId, remainingQty);
+      await persistLotQty(numEl.dataset.lotId, itemId, remainingQty, originalQty);
       consumedAny = true;
     }
 
@@ -362,7 +362,7 @@ async function confirmInlineConsume(cardEl) {
     const remainingQty = Number(numEl.dataset.qty) || 0;
     const originalQty = Number(numEl.dataset.originalQty) || 0;
     if (remainingQty >= originalQty) continue;
-    await persistLotQty(numEl.dataset.lotId, itemId, remainingQty);
+    await persistLotQty(numEl.dataset.lotId, itemId, remainingQty, originalQty);
     consumedAny = true;
   }
 

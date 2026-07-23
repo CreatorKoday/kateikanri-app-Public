@@ -1,0 +1,129 @@
+/* ==========================================================
+   KURA:S デザインシステム ― history.css
+   購入・消費履歴ページ(在庫確認と同じ独立ページ。下部ナビには無いため戻るボタンを持つ)
+   ========================================================== */
+
+.history-title-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+
+.history-title-row .view-title { margin: 0; flex: 1; }
+
+/* 編集モード中は色を変えてON状態だとわかるようにする(unit-chip.selectedなどと同じ考え方) */
+.history-edit-toggle-btn.active { background: var(--primary); color: #fff; }
+
+/* Excelの表のような一覧。列数が多く390px幅では収まらないため横スクロールを許容する */
+.history-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.history-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.history-table th,
+.history-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table th {
+  position: sticky; top: 0;
+  background: var(--bg-1);
+  color: var(--text-secondary);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.history-table tbody tr:last-child td { border-bottom: none; }
+
+.history-table tbody tr:hover { background: var(--bg-1); }
+
+/* サマリーのカレンダーから特定の1日だけに絞り込んだ表示の間は、日付列は
+   常に同じ値になり冗長なため隠す(サマリー側で日付はすでにわかっているため) */
+.history-table.day-view th:first-child,
+.history-table.day-view td:first-child { display: none; }
+
+.history-event-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px; font-weight: 700;
+}
+
+.history-event-badge.purchase { background: rgba(47, 179, 128, 0.14); color: var(--success); }
+
+.history-event-badge.consumption { background: rgba(229, 160, 59, 0.16); color: var(--consume); }
+
+/* 編集モードのセル内入力欄。表の行の高さを大きく変えないよう最小限のパディングにする */
+.history-edit-input {
+  width: 100%; min-width: 90px;
+  height: 30px;
+  padding: 2px 6px; margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface); color: var(--text);
+}
+
+.history-edit-input.history-edit-qty { width: 70px; min-width: 70px; }
+
+/* 絞り込みオーバーレイの「日付」「価格」タブ(チェックボックスではなくfrom/toの範囲入力) */
+.history-filter-range-row { margin-bottom: 16px; }
+
+.history-filter-range-row label {
+  display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;
+}
+
+.history-filter-range-row input { margin: 0; }
+
+/* 並び替えオーバーレイ。在庫確認画面の2ペイン+階層タブとは違い、商品登録の
+   「1つ当たり/合計金額」と同じスイッチ(.price-mode-toggle、register.cssで定義)を
+   3段並べるだけの単純な構成にする */
+#history-sort-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn .2s ease;
+}
+
+#history-sort-overlay.hidden { display: none; }
+
+#history-sort-sheet {
+  background: var(--surface);
+  border-radius: 28px 28px 0 0;
+  width: 100%; max-width: 460px;
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px rgba(25,17,66,0.2);
+  animation: fadeSlideIn .25s ease;
+}
+
+.history-sort-row { margin: 18px 0; }
+
+.history-sort-row label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;
+}
+
+.history-sort-actions {
+  display: flex; gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--border);
+}
+
+.history-sort-actions button { margin: 0; }

@@ -1,0 +1,48 @@
+/* ==========================================================
+   KURA:S デザインシステム ― balanceSheet.css
+   在庫収支表(貸借対照表風)ページ
+   ========================================================== */
+
+.balance-table-wrap { overflow-x: auto; }
+
+.balance-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.balance-table th {
+  text-align: left;
+  padding: 6px 4px;
+  background: var(--bg-1);
+  color: var(--text-tertiary);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.balance-table th:nth-child(1),
+.balance-table th:nth-child(3) { border-right: 1px solid var(--border); }
+
+.balance-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: break-word;
+}
+
+.balance-table th:nth-child(1), .balance-table td:nth-child(1),
+.balance-table th:nth-child(3), .balance-table td:nth-child(3) { width: 30%; }
+.balance-table th:nth-child(2), .balance-table td:nth-child(2),
+.balance-table th:nth-child(4), .balance-table td:nth-child(4) { width: 20%; }
+
+.balance-table td:nth-child(2) { text-align: right; }
+.balance-table td:nth-child(1) { border-right: 1px solid var(--border); }
+.balance-table td:nth-child(3) { border-right: 1px solid var(--border); }
+.balance-table td:nth-child(4) { text-align: right; }
+
+.balance-total-row td {
+  font-weight: 700;
+  color: var(--text);
+  border-top: 2px solid var(--primary);
+  border-bottom: none;
+}
